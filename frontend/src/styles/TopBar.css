@@ -10,7 +10,6 @@
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1rem 0;
-  transition: all 0.3s ease;
 }
 
 .topbar-container {
@@ -22,7 +21,6 @@
   align-items: center;
 }
 
-/* Logo */
 .topbar-logo {
   display: flex;
   flex-direction: column;
@@ -32,29 +30,23 @@
 .logo-text {
   font-size: 1.5rem;
   font-weight: 700;
-  color: white;
   background: linear-gradient(135deg, #fff 0%, #a0d8f1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: -0.02em;
 }
 
 .logo-subtitle {
   font-size: 0.7rem;
   color: #888;
   font-weight: 500;
-  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-/* Menú de navegación */
 .topbar-menu {
   display: flex;
   list-style: none;
   gap: 2.5rem;
-  margin: 0;
-  padding: 0;
 }
 
 .topbar-link {
@@ -64,8 +56,8 @@
   font-weight: 500;
   padding: 0.5rem 0;
   position: relative;
-  transition: color 0.3s ease;
   cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 .topbar-link::after {
@@ -95,7 +87,6 @@
   width: 100%;
 }
 
-/* Botón móvil hamburguesa */
 .mobile-menu-btn {
   display: none;
   flex-direction: column;
@@ -113,27 +104,12 @@
   transition: all 0.3s ease;
 }
 
-/* Responsive - Tablets */
+/* Responsive - Móviles */
 @media (max-width: 768px) {
   .topbar-container {
     padding: 0 1.5rem;
   }
 
-  .topbar-menu {
-    gap: 1.5rem;
-  }
-
-  .topbar-link {
-    font-size: 0.95rem;
-  }
-
-  .logo-text {
-    font-size: 1.3rem;
-  }
-}
-
-/* Responsive - Móviles */
-@media (max-width: 640px) {
   .mobile-menu-btn {
     display: flex;
   }
@@ -149,7 +125,6 @@
     gap: 0;
     padding: 2rem 0;
     transition: left 0.3s ease;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .topbar-menu.active {
@@ -166,18 +141,4 @@
     padding: 1rem 2rem;
     font-size: 1.1rem;
   }
-
-  .topbar-link::after {
-    display: none;
-  }
-
-  .topbar-link.active {
-    background: rgba(255, 255, 255, 0.1);
-  }
-}
-
-/* Efecto al hacer scroll (opcional) */
-.topbar.scrolled {
-  background: rgba(0, 0, 0, 0.8);
-  padding: 0.75rem 0;
 }
