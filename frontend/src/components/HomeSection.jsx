@@ -14,18 +14,14 @@ function HomeSection() {
       setTimeout(() => {
         setIsLoading(false);
         
-        // Configurar el viewer de Spline para loop infinito
         setTimeout(() => {
           const splineViewer = splineViewerRef.current?.querySelector('spline-viewer');
           if (splineViewer) {
-            // Esperar a que Spline esté completamente cargado
             splineViewer.addEventListener('load', () => {
-              // Configurar loop infinito
               if (splineViewer.play) {
                 splineViewer.play();
               }
               
-              // Si hay una animación, configurarla para que se repita
               const canvas = splineViewer.shadowRoot?.querySelector('canvas');
               if (canvas) {
                 canvas.style.pointerEvents = 'auto';
@@ -59,6 +55,21 @@ function HomeSection() {
     }
   };
 
+  // Generar estrellas aleatorias
+  const generateStars = () => {
+    const stars = [];
+    for (let i = 0; i < 150; i++) {
+      const style = {
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 3}s`,
+        animationDuration: `${2 + Math.random() * 3}s`,
+      };
+      stars.push(<div key={i} className="star" style={style}></div>);
+    }
+    return stars;
+  };
+
   return (
     <>
       {isLoading && (
@@ -71,6 +82,11 @@ function HomeSection() {
       )}
 
       <section id="inicio" className="home-container">
+        {/* Capa de estrellas */}
+        <div className="stars-container">
+          {generateStars()}
+        </div>
+
         <div className="spline-container" ref={splineViewerRef}>
           <spline-viewer 
             url="https://prod.spline.design/eB760BIfkgxR51h9/scene.splinecode"

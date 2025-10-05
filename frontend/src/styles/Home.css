@@ -9,6 +9,39 @@
   background-color: #000;
 }
 
+/* Capa de estrellas */
+.stars-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  animation: twinkle 3s infinite;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
 /* Contenedor de Spline - Pantalla completa */
 .spline-container {
   position: absolute;
@@ -53,9 +86,8 @@
   padding: 2rem;
 }
 
-/* Espacio para el planeta (columna izquierda vacía) */
+/* Espacio para el planeta (columna derecha vacía) */
 .planet-space {
-  /* Esta columna permanece vacía para que el planeta sea visible */
   pointer-events: none;
 }
 
@@ -63,9 +95,9 @@
 .content-side {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 2rem 2rem 2rem 5rem;
-  transform: translateY(-40px);
+  justify-content: center;
+  padding: 2rem;
+  transform: translateY(60px) translateX(80px);
 }
 
 /* Card contenedor del contenido */
@@ -281,6 +313,10 @@
     display: none;
   }
 
+  .content-side {
+    transform: translateY(0) translateX(0);
+  }
+
   .content-card {
     background: rgba(0, 0, 0, 0.7);
   }
@@ -307,6 +343,7 @@
 @media (max-width: 768px) {
   .content-side {
     padding: 1rem;
+    transform: translateY(0) translateX(0);
   }
 
   .content-card {
