@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import '../styles/TopBar.css';
 
 function TopBar() {
+  const location = useLocation();
   const [activeLink, setActiveLink] = useState('inicio');
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -9,45 +11,68 @@ function TopBar() {
     setActiveLink(link);
     setMenuOpen(false);
     
-    // Scroll suave a la sección
-    const section = document.getElementById(sectionId);
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Solo scroll si estamos en la página principal
+    if (location.pathname === '/') {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
+  };
+
+  const handleLogoClick = () => {
+    setActiveLink('inicio');
+    setMenuOpen(false);
   };
 
   return (
     <nav className="topbar">
       <div className="topbar-container">
-        <div className="topbar-logo">
+        <Link to="/" className="topbar-logo" onClick={handleLogoClick} style={{ textDecoration: 'none', color: 'inherit' }}>
           <span className="logo-text">Air Track</span>
           <span className="logo-subtitle">Apollo 5C</span>
-        </div>
+        </Link>
 
         <ul className={`topbar-menu ${menuOpen ? 'active' : ''}`}>
           <li>
-            <a
-              href="#inicio"
+            <Link
+              to="/"
               className={`topbar-link ${activeLink === 'inicio' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 handleClick('inicio', 'inicio');
               }}
             >
               Inicio
-            </a>
+            </Link>
           </li>
           <li>
             <a
               href="#acerca-de"
               className={`topbar-link ${activeLink === 'acerca-de' ? 'active' : ''}`}
               onClick={(e) => {
-                e.preventDefault();
-                handleClick('acerca-de', 'acerca-de');
+                if (location.pathname === '/') {
+                  e.preventDefault();
+                  handleClick('acerca-de', 'acerca-de');
+                } else {
+                  // Si estamos en otra página, redirigir al home con el anchor
+                  window.location.href = '/#acerca-de';
+                }
               }}
             >
               Acerca de
             </a>
+          </li>
+          <li>
+            <Link
+              to="/dashboard"
+              className={`topbar-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveLink('dashboard');
+                setMenuOpen(false);
+              }}
+            >
+              Dashboard
+            </Link>
           </li>
         </ul>
 
