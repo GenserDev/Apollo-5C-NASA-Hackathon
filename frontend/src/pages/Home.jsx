@@ -1,13 +1,15 @@
+// Home.jsx - Página principal de Air Track
 // NASA Space Apps Challenge 2025
-// Pagina principal para visualizar la calidad del aire
 // "From EarthData to Action: Cloud Computing with Earth Observation Data for Predicting Cleaner, Safer Skies"
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import '../styles/Home.css';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Cargar el script de Spline
@@ -27,6 +29,18 @@ export default function Home() {
       }
     };
   }, []);
+
+  const handleExploreDatos = () => {
+    navigate('/dashboard');
+  };
+
+  const handleSaberMas = () => {
+    // Scroll a la sección "Acerca de" o navegar a otra página
+    const acercaDeSection = document.getElementById('acerca-de');
+    if (acercaDeSection) {
+      acercaDeSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="home-container">
@@ -69,10 +83,10 @@ export default function Home() {
             </p>
             
             <div className="button-group">
-              <button className="btn-primary">
+              <button className="btn-primary" onClick={handleExploreDatos}>
                 Explorar Datos
               </button>
-              <button className="btn-secondary">
+              <button className="btn-secondary" onClick={handleSaberMas}>
                 Saber más
               </button>
             </div>

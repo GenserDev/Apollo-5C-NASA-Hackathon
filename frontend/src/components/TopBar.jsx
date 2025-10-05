@@ -1,30 +1,38 @@
-// TopBar.jsx - Barra de navegación superior
 import { useState } from 'react';
 import '../styles/TopBar.css';
 
 function TopBar() {
   const [activeLink, setActiveLink] = useState('inicio');
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleClick = (link) => {
+  const handleClick = (link, sectionId) => {
     setActiveLink(link);
+    setMenuOpen(false);
+    
+    // Scroll suave a la sección
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   return (
     <nav className="topbar">
       <div className="topbar-container">
-        {/* Logo / Nombre del proyecto */}
         <div className="topbar-logo">
           <span className="logo-text">Air Track</span>
           <span className="logo-subtitle">Apollo 5C</span>
         </div>
 
-        {/* Links de navegación */}
-        <ul className="topbar-menu">
+        <ul className={`topbar-menu ${menuOpen ? 'active' : ''}`}>
           <li>
             <a
               href="#inicio"
               className={`topbar-link ${activeLink === 'inicio' ? 'active' : ''}`}
-              onClick={() => handleClick('inicio')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleClick('inicio', 'inicio');
+              }}
             >
               Inicio
             </a>
@@ -33,24 +41,21 @@ function TopBar() {
             <a
               href="#acerca-de"
               className={`topbar-link ${activeLink === 'acerca-de' ? 'active' : ''}`}
-              onClick={() => handleClick('acerca-de')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleClick('acerca-de', 'acerca-de');
+              }}
             >
               Acerca de
             </a>
           </li>
-          <li>
-            <a
-              href="#datos"
-              className={`topbar-link ${activeLink === 'datos' ? 'active' : ''}`}
-              onClick={() => handleClick('datos')}
-            >
-              Datos
-            </a>
-          </li>
         </ul>
 
-        {/* Botón móvil hamburguesa */}
-        <button className="mobile-menu-btn" aria-label="Menú">
+        <button 
+          className="mobile-menu-btn" 
+          aria-label="Menú"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
           <span className="hamburger-line"></span>
           <span className="hamburger-line"></span>
           <span className="hamburger-line"></span>

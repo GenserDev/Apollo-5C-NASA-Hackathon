@@ -1,13 +1,30 @@
+# FastAPI Framework
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 pydantic==2.5.3
 python-multipart==0.0.6
+
+# NASA Earthdata Access
 earthaccess==0.9.0
 harmony-py==0.4.15
+
+# Data Processing
 numpy==1.26.3
 netCDF4==1.6.5
 xarray==2024.1.1
-requests==2.31.0
-python-dotenv==0.20.0
 h5netcdf==1.3.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Environment Variables
+python-dotenv==0.20.0
+
+# Timezone lookup by lat/lon
+timezonefinder==6.1.8
+
+# Build Tools
 setuptools==69.0.3
+
+# CORS Middleware (ya viene con fastapi, pero explícito)
+# fastapi ya incluye starlette que tiene CORSMiddleware
