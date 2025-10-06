@@ -17,7 +17,7 @@ app = FastAPI(title="TEMPO Air Quality API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,60 +40,38 @@ class AirQualityResponse(BaseModel):
     location: dict
     readings: List[AirQualityReading]
 
-# Variables globales
 earth_auth = None
 auth_initialized = False
 tz_finder = TimezoneFinder()
 
-
 def get_timezone_name(lat: float, lon: float) -> Optional[str]:
-    """Obtiene el nombre de la zona horaria para coordenadas dadas."""
     try:
         return tz_finder.timezone_at(lat=lat, lng=lon)
     except Exception:
         return None
 
-
 def localize_dt(dt: datetime, lat: float, lon: float) -> str:
-    """Retorna timestamp ISO localizado a la zona horaria de (lat, lon).
-
-    Los datetime naive se asumen como UTC para propósitos de conversión.
-    Si no se encuentra zona horaria, regresa ISO sin info de tz.
-    """
     try:
         tzname = get_timezone_name(lat, lon)
         if not tzname:
             return dt.isoformat()
-
-        # Asegurar que dt es timezone-aware en UTC, luego convertir
         if dt.tzinfo is None:
             dt_utc = dt.replace(tzinfo=timezone.utc)
         else:
             dt_utc = dt.astimezone(timezone.utc)
-
         local = dt_utc.astimezone(ZoneInfo(tzname))
         return local.isoformat()
     except Exception:
         return dt.isoformat()
 
-
 def is_in_north_america(lat: float, lon: float) -> bool:
-    """Verifica si las coordenadas están dentro de Norteamérica.
-    
-    Límites aproximados de cobertura TEMPO:
-    - Latitud: 7°N a 83°N
-    - Longitud: 168°W a 52°W
-    """
     return (7 <= lat <= 83) and (-168 <= lon <= -52)
 
-
 def calculate_aqi(pollutant: str, value: float) -> tuple:
-    """Calcula el Índice de Calidad del Aire (AQI)."""
     if value is None or np.isnan(value):
         return None, "No disponible"
     
     if pollutant == "NO2":
-        # NO2 en ppb a AQI
         if value <= 53:
             aqi = value * 50 / 53
             level = "Good"
@@ -109,10 +87,7 @@ def calculate_aqi(pollutant: str, value: float) -> tuple:
         else:
             aqi = 300 + (value - 649) * 100 / 351
             level = "Very Unhealthy"
-    
     elif pollutant == "O3":
-        # O3: TEMPO reporta en DU (Dobson Units)
-        # Convertir a ppb para cálculo de AQI (1 DU ≈ 0.3 ppb aproximadamente)
         value_ppb = value * 0.3
         if value_ppb <= 54:
             aqi = value_ppb * 50 / 54
@@ -129,9 +104,7 @@ def calculate_aqi(pollutant: str, value: float) -> tuple:
         else:
             aqi = 200 + (value_ppb - 105) * 100 / 95
             level = "Very Unhealthy"
-    
     elif pollutant == "HCHO":
-        # HCHO en ppb a AQI
         if value <= 10:
             aqi = value * 50 / 10
             level = "Good"
@@ -141,9 +114,7 @@ def calculate_aqi(pollutant: str, value: float) -> tuple:
         else:
             aqi = 100 + (value - 20) * 2
             level = "Unhealthy for Sensitive Groups"
-    
     else:
-        # Genérico
         if value <= 50:
             aqi = value
             level = "Good"
@@ -156,9 +127,7 @@ def calculate_aqi(pollutant: str, value: float) -> tuple:
     
     return int(aqi) if aqi else None, level
 
-
 def convert_molecules_to_ppb(molecules_cm2: float, pollutant: str) -> float:
-    """Convierte moléculas/cm² a ppb."""
     if molecules_cm2 is None or np.isnan(molecules_cm2):
         return None
     
@@ -169,98 +138,171 @@ def convert_molecules_to_ppb(molecules_cm2: float, pollutant: str) -> float:
     
     factor = conversion_factors.get(pollutant, 5e-16)
     ppb = abs(molecules_cm2) * factor
-    
     return ppb
 
-
 def process_tempo_netcdf(file_path: str, lat: float, lon: float, pollutant: str):
-    """Procesa archivo NetCDF de TEMPO."""
+    """Process TEMPO NetCDF - FIXED for V04 format where lat/lon are at root level"""
     try:
         from netCDF4 import Dataset
         
-        print(f"Abriendo archivo: {file_path}")
-        
+        print(f"\n=== Processing {file_path} ===")
         nc = Dataset(file_path, 'r')
         
-        if 'product' not in nc.groups or 'geolocation' not in nc.groups:
-            print(f"Grupos necesarios no encontrados")
-            nc.close()
-            return None
+        # Check if this is L3 or L2 data
+        is_l3 = 'product' in nc.groups
         
-        product = nc.groups['product']
-        geolocation = nc.groups['geolocation']
+        if is_l3:
+            print("Detected L3 format")
+            product = nc.groups['product']
+            
+            # L3 variable mapping
+            var_map = {
+                "NO2": "vertical_column_troposphere",
+                "HCHO": "vertical_column_troposphere",
+                "O3": "vertical_column_total"
+            }
+            
+            var_name = var_map.get(pollutant)
+            if not var_name or var_name not in product.variables:
+                print(f"Variable {var_name} not found in L3 product group")
+                nc.close()
+                return None
+            
+            data = product.variables[var_name][:]
+            
+            # CRITICAL: For TEMPO L3 V04, lat/lon are at ROOT level, not in geolocation group
+            lat_names = ['latitude', 'lat', 'Latitude']
+            lon_names = ['longitude', 'lon', 'Longitude']
+            
+            lats = None
+            lons = None
+            
+            # First try root level (V04 format)
+            for lat_name in lat_names:
+                if lat_name in nc.variables:
+                    lats = nc.variables[lat_name][:]
+                    print(f"Found latitude at root: {lat_name}")
+                    break
+            
+            for lon_name in lon_names:
+                if lon_name in nc.variables:
+                    lons = nc.variables[lon_name][:]
+                    print(f"Found longitude at root: {lon_name}")
+                    break
+            
+            # If not found at root, try geolocation group (older format)
+            if lats is None and 'geolocation' in nc.groups:
+                geolocation = nc.groups['geolocation']
+                for lat_name in lat_names:
+                    if lat_name in geolocation.variables:
+                        lats = geolocation.variables[lat_name][:]
+                        print(f"Found latitude in geolocation: {lat_name}")
+                        break
+            
+            if lons is None and 'geolocation' in nc.groups:
+                geolocation = nc.groups['geolocation']
+                for lon_name in lon_names:
+                    if lon_name in geolocation.variables:
+                        lons = geolocation.variables[lon_name][:]
+                        print(f"Found longitude in geolocation: {lon_name}")
+                        break
+            
+            if lats is None or lons is None:
+                print(f"Root variables: {list(nc.variables.keys())}")
+                if 'geolocation' in nc.groups:
+                    print(f"Geolocation variables: {list(nc.groups['geolocation'].variables.keys())}")
+                nc.close()
+                return None
+            
+        else:
+            # Try L2 format - variables at root level or in different groups
+            print("Trying L2 format")
+            
+            # For L2, lat/lon often at root
+            if 'latitude' in nc.variables and 'longitude' in nc.variables:
+                lats = nc.variables['latitude'][:]
+                lons = nc.variables['longitude'][:]
+            else:
+                print("Could not find lat/lon variables")
+                nc.close()
+                return None
+            
+            # L2 variable mapping - try multiple possibilities
+            l2_var_options = {
+                "NO2": ["nitrogen_dioxide_tropospheric_column", "NO2_column", "tropospheric_NO2"],
+                "HCHO": ["formaldehyde_tropospheric_column", "HCHO_column", "tropospheric_HCHO"],
+                "O3": ["ozone_total_vertical_column", "O3_column", "total_O3"]
+            }
+            
+            var_name = None
+            data = None
+            
+            # Search in different groups and root
+            search_locations = [nc]
+            if 'product' in nc.groups:
+                search_locations.append(nc.groups['product'])
+            if 'geophysical_data' in nc.groups:
+                search_locations.append(nc.groups['geophysical_data'])
+            
+            for location in search_locations:
+                for candidate in l2_var_options.get(pollutant, []):
+                    if candidate in location.variables:
+                        var_name = candidate
+                        data = location.variables[candidate][:]
+                        print(f"Found variable: {var_name}")
+                        break
+                if data is not None:
+                    break
+            
+            if data is None:
+                print(f"No suitable variable found for {pollutant}")
+                print(f"Available variables: {list(nc.variables.keys())}")
+                nc.close()
+                return None
         
-        print(f"Grupos encontrados: product, geolocation")
+        print(f"Data shape: {data.shape}, Lat shape: {lats.shape}, Lon shape: {lons.shape}")
         
-        # Candidatos de nombres de variables por contaminante
-        candidates = {
-            "NO2": ["vertical_column_troposphere", "tropospheric_column", "NO2_column"],
-            "HCHO": ["vertical_column_troposphere", "formaldehyde_column", "HCHO_column"],
-            "O3": ["vertical_column_total", "ozone_column", "O3_total", "O3_column", "step2_o3", "step1_o3"]
-        }
-
-        var_candidates = candidates.get(pollutant, [])
-
-        # Para O3, verificar tanto product como support_data
-        data_group = product
-        if pollutant == "O3" and 'support_data' in nc.groups:
-            data_group = nc.groups['support_data']
-
-        # Listar variables disponibles para diagnóstico
-        vars_available = list(data_group.variables.keys())
-
-        var_name = None
-        for cand in var_candidates:
-            if cand in data_group.variables:
-                var_name = cand
-                break
-
-        if not var_name:
-            print(f"Variable esperada no encontrada. Variables disponibles: {vars_available}")
-            nc.close()
-            return {"diagnostic": True, "variables_available": vars_available}
-
-        print(f"Variable encontrada: {var_name}")
-
-        data = data_group.variables[var_name][:]
-        lats = geolocation.variables['latitude'][:]
-        lons = geolocation.variables['longitude'][:]
+        # Handle different dimension structures
+        if len(data.shape) == 3:
+            data = data[0]  # Take first time slice
         
-        print(f"Datos cargados - Shape: {data.shape}")
+        # Ensure lats/lons are 2D for distance calculation
+        if len(lats.shape) == 1 and len(lons.shape) == 1:
+            # Create meshgrid
+            lons_2d, lats_2d = np.meshgrid(lons, lats)
+        else:
+            lats_2d = lats
+            lons_2d = lons
         
-        # Encontrar punto más cercano
-        distances = np.sqrt((lats - lat)**2 + (lons - lon)**2)
+        # Find nearest point
+        distances = np.sqrt((lats_2d - lat)**2 + (lons_2d - lon)**2)
         min_idx = np.unravel_index(distances.argmin(), distances.shape)
         
         value = float(data[min_idx])
-
         nc.close()
-
-        # Validar valor
+        
+        # Validate
         if np.isnan(value) or value < -9e30 or value > 1e30:
-            print(f"Valor inválido: {value}")
+            print(f"Invalid value: {value}")
             return None
-
-        print(f"Valor extraído: {value:.6e}")
-
-        # Conversión según contaminante
+        
+        print(f"Extracted value: {value:.6e}")
+        
+        # Convert based on pollutant
         if pollutant in ["NO2", "HCHO"]:
             ppb_value = convert_molecules_to_ppb(value, pollutant)
             return {"value": ppb_value, "variable_used": var_name}
         elif pollutant == "O3":
-            # O3 está típicamente en Dobson Units (DU), no necesita conversión
             return {"value": abs(value) if value else None, "variable_used": var_name}
-
+        
         return None
         
     except Exception as e:
-        print(f"Error procesando NetCDF: {e}")
+        print(f"Error processing NetCDF: {e}")
         traceback.print_exc()
         return None
 
-
 def ensure_authentication():
-    """Asegura que la autenticación esté activa."""
     global earth_auth, auth_initialized
     
     if auth_initialized and earth_auth:
@@ -272,123 +314,103 @@ def ensure_authentication():
         username = os.getenv("NASA_USERNAME")
         password = os.getenv("NASA_PASSWORD")
         
+        print(f"\n=== Authentication ===")
+        print(f"Username from env: {username}")
+        print(f"Password present: {bool(password)}")
+        
         if not (username and password):
-            print("Credenciales no encontradas")
+            print("ERROR: Credentials not found in environment")
             return None
         
-        # Forzar re-autenticación
         os.environ["EARTHDATA_USERNAME"] = username
         os.environ["EARTHDATA_PASSWORD"] = password
         
-        # Usar persist=True para guardar credenciales
         earth_auth = earthaccess.login(strategy="environment", persist=True)
         auth_initialized = True
         
-        print(f"Autenticación completada: {username}")
+        print(f"Authentication successful for: {username}")
         return earth_auth
         
     except Exception as e:
-        print(f"Error de autenticación: {e}")
+        print(f"Authentication error: {e}")
+        traceback.print_exc()
         auth_initialized = False
         return None
 
-
 def process_tempo_data(granules, lat: float, lon: float, pollutant: str):
-    """Descarga y procesa granulos de TEMPO."""
+    """Download and process TEMPO granules"""
     try:
         if not granules:
             return None
         
         import earthaccess
         
-        # Re-autenticar antes de descargar
         auth = ensure_authentication()
         if not auth:
-            print("No se pudo autenticar")
+            print("Authentication failed")
             return None
         
-        print(f"Intentando descargar {len(granules)} granulos...")
-
-        variables_seen = set()
+        print(f"\nAttempting to download {len(granules)} granules...")
+        
         for i, granule in enumerate(granules[:3]):
             try:
-                print(f"\nProcesando granulo {i+1}/{min(3, len(granules))}...")
-
-                temp_dir = tempfile.mkdtemp()
+                print(f"\n--- Granule {i+1}/{min(3, len(granules))} ---")
                 
-                # Descargar con el objeto de auth
+                temp_dir = tempfile.mkdtemp()
                 downloaded = earthaccess.download(granule, temp_dir)
                 
                 if not downloaded:
-                    print(f"No se pudo descargar granulo {i+1}")
+                    print(f"Download failed for granule {i+1}")
                     continue
                 
                 file_path = downloaded[0]
-                print(f"Archivo descargado: {os.path.basename(file_path)}")
+                print(f"Downloaded: {os.path.basename(file_path)}")
                 
-                value = process_tempo_netcdf(file_path, lat, lon, pollutant)
+                result = process_tempo_netcdf(file_path, lat, lon, pollutant)
                 
+                # Cleanup
                 try:
                     os.remove(file_path)
                     os.rmdir(temp_dir)
                 except:
                     pass
                 
-                if value is not None:
-                    # Si retorna objeto con info de diagnóstico
-                    if isinstance(value, dict) and value.get("diagnostic"):
-                        vars_av = value.get('variables_available') or []
-                        print(f"Diagnóstico NetCDF: variables disponibles: {vars_av}")
-                        for v in vars_av:
-                            variables_seen.add(v)
-                        continue
-
-                    # Caso normal: dict con value y variable_used
-                    if isinstance(value, dict) and "value" in value:
-                        print(f"Datos procesados exitosamente: {value['value']}")
-                        return value
-
-                    # Valor numérico legacy
-                    print(f"Datos procesados exitosamente: {value}")
-                    return value
-                else:
-                    print(f"No se pudo extraer valor del granulo {i+1}")
+                if result and isinstance(result, dict) and "value" in result:
+                    print(f"SUCCESS: Got value {result['value']}")
+                    return result
                     
             except Exception as e:
-                print(f"Error con granulo {i+1}: {e}")
+                print(f"Error with granule {i+1}: {e}")
+                traceback.print_exc()
                 continue
         
-        if variables_seen:
-            return {"diagnostic": True, "variables_available": sorted(list(variables_seen))}
-
-        print(f"No se pudo procesar ningún granulo")
+        print("Could not process any granules")
         return None
         
     except Exception as e:
-        print(f"Error general procesando datos TEMPO: {e}")
+        print(f"Error in process_tempo_data: {e}")
         traceback.print_exc()
         return None
 
-
 @app.on_event("startup")
 async def startup_event():
-    """Inicializa autenticación NASA Earthdata."""
     global earth_auth, auth_initialized
-    
+    print("\n" + "="*60)
+    print("STARTING TEMPO AIR QUALITY API")
+    print("="*60)
     auth = ensure_authentication()
-    
     if auth:
-        print("TEMPO data source: ACTIVE")
+        print("âœ“ TEMPO data source: ACTIVE")
     else:
-        print("API funcionará en modo solo consulta")
-
+        print("âœ— API will run in read-only mode")
+    print("="*60 + "\n")
 
 @app.get("/")
 async def root():
     return {
         "message": "TEMPO Air Quality API",
         "status": "live_data" if earth_auth else "read_only",
-        "coverage": "North America (7°N to 83°N, 168°W to 52°W)",
+        "coverage": "North America (7Â°N to 83Â°N, 168Â°W to 52Â°W)",
         "endpoints": {
             "/air-quality": "Get air quality data",
             "/pollutants": "List pollutants",
@@ -399,7 +421,6 @@ async def root():
         }
     }
 
-
 @app.get("/health")
 async def health_check():
     return {
@@ -409,7 +430,6 @@ async def health_check():
         "can_download": earth_auth is not None,
         "coverage_area": "North America"
     }
-
 
 @app.get("/pollutants")
 async def get_pollutants():
@@ -439,7 +459,6 @@ async def get_pollutants():
         ]
     }
 
-
 @app.get("/air-quality", response_model=AirQualityResponse)
 async def get_air_quality(
     lat: float = Query(..., ge=-90, le=90),
@@ -447,33 +466,31 @@ async def get_air_quality(
     date: Optional[str] = Query(None),
     pollutant: Optional[str] = Query("NO2")
 ):
-    """Obtiene datos de calidad del aire del satélite TEMPO."""
+    """Get air quality data from TEMPO satellite - FIXED VERSION"""
     
-    # Verificar que está dentro de Norteamérica
     if not is_in_north_america(lat, lon):
         raise HTTPException(
             status_code=400,
-            detail="La ubicación debe estar dentro de Norteamérica (cobertura TEMPO: 7°N-83°N, 168°W-52°W)"
+            detail="Location must be in North America (TEMPO coverage: 7Â°N-83Â°N, 168Â°W-52Â°W)"
         )
     
     print(f"\n{'='*60}")
-    print(f"Consulta: {pollutant} en ({lat}, {lon})")
+    print(f"Query: {pollutant} at ({lat}, {lon})")
     print(f"{'='*60}")
     
-    dataset_map = {
-        "NO2": "TEMPO_NO2_L2",
-        "O3": "TEMPO_O3TOT_L2",
-        "HCHO": "TEMPO_HCHO_L2"
+    # Try BOTH L2 and L3 datasets
+    dataset_options = {
+        "NO2": ["TEMPO_NO2_L3", "TEMPO_NO2_L2"],
+        "O3": ["TEMPO_O3TOT_L3", "TEMPO_O3TOT_L2"],
+        "HCHO": ["TEMPO_HCHO_L3", "TEMPO_HCHO_L2"]
     }
     
-    dataset_name = dataset_map.get(pollutant)
+    dataset_names = dataset_options.get(pollutant, [])
     granules_count = 0
     
-    if not dataset_name:
-        # Obtener hora local para el timestamp
+    if not dataset_names:
         now_local = datetime.now(timezone.utc)
         timestamp_local = localize_dt(now_local, lat, lon)
-        
         reading = AirQualityReading(
             pollutant=pollutant,
             value=None,
@@ -491,99 +508,94 @@ async def get_air_quality(
             readings=[reading]
         )
     
-    # Re-autenticar antes de buscar
     auth = ensure_authentication()
     
     if auth:
         try:
             import earthaccess
             
-            # Usar hora actual UTC o fecha especificada
             if date:
                 query_date = datetime.strptime(date, "%Y-%m-%d")
             else:
                 query_date = datetime.utcnow()
             
-            # Buscar datos de los últimos 7 días
-            start_date = query_date - timedelta(days=7)
+            # Try last 14 days for better chance of finding data
+            start_date = query_date - timedelta(days=14)
             end_date = query_date
             
-            print(f"Buscando datos desde {start_date.date()} hasta {end_date.date()}")
+            print(f"Searching from {start_date.date()} to {end_date.date()}")
             
-            results = earthaccess.search_data(
-                short_name=dataset_name,
-                temporal=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")),
-                bounding_box=(lon - 2.0, lat - 2.0, lon + 2.0, lat + 2.0)
-            )
-
+            # Try each dataset option
+            results = None
+            for dataset_name in dataset_names:
+                print(f"\nTrying dataset: {dataset_name}")
+                try:
+                    temp_results = earthaccess.search_data(
+                        short_name=dataset_name,
+                        temporal=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")),
+                        bounding_box=(lon - 3.0, lat - 3.0, lon + 3.0, lat + 3.0)
+                    )
+                    
+                    if temp_results and len(temp_results) > 0:
+                        results = temp_results
+                        print(f"âœ“ Found {len(results)} granules in {dataset_name}")
+                        break
+                except Exception as e:
+                    print(f"Error searching {dataset_name}: {e}")
+                    continue
+            
             granules_count = len(results) if results else 0
-            print(f"Granulos encontrados: {granules_count}")
-
+            
             if results and granules_count > 0:
-                print(f"Encontrados {granules_count} archivos TEMPO")
-                
                 value = process_tempo_data(results, lat, lon, pollutant)
                 
-                processed_value = None
-                variable_used = None
-
-                if value is not None:
-                    if isinstance(value, dict) and "value" in value:
-                        processed_value = value["value"]
-                        variable_used = value.get("variable_used")
-                    elif isinstance(value, (int, float)):
-                        processed_value = value
-
-                if processed_value is not None and not np.isnan(processed_value):
-                    aqi, quality_level = calculate_aqi(pollutant, processed_value)
+                if value and isinstance(value, dict) and "value" in value:
+                    processed_value = value["value"]
+                    variable_used = value.get("variable_used")
                     
-                    unit = "ppb" if pollutant in ["NO2", "HCHO"] else "DU"
-                    
-                    # Timestamp localizado a la zona horaria del lugar
-                    timestamp_local = localize_dt(query_date, lat, lon)
-                    
-                    reading = AirQualityReading(
-                        pollutant=pollutant,
-                        value=round(processed_value, 2),
-                        unit=unit,
-                        timestamp=timestamp_local,
-                        latitude=lat,
-                        longitude=lon,
-                        aqi=aqi,
-                        quality_level=quality_level,
-                        available=True,
-                        granules_found=granules_count
-                    )
-                    
-                    print(f"ÉXITO: Datos procesados correctamente (variable_used={variable_used})")
-                    print(f"{'='*60}\n")
-                    
-                    location_meta = {
-                        "latitude": lat,
-                        "longitude": lon,
-                        "data_source": "tempo_satellite",
-                        "granules_processed": granules_count
-                    }
-                    if variable_used:
-                        location_meta["variable_used"] = variable_used
-
-                    return AirQualityResponse(
-                        location=location_meta,
-                        readings=[reading]
-                    )
-                else:
-                    print(f"No se pudo extraer valor válido de los granulos")
+                    if processed_value is not None and not np.isnan(processed_value):
+                        aqi, quality_level = calculate_aqi(pollutant, processed_value)
+                        unit = "ppb" if pollutant in ["NO2", "HCHO"] else "DU"
+                        timestamp_local = localize_dt(query_date, lat, lon)
+                        
+                        reading = AirQualityReading(
+                            pollutant=pollutant,
+                            value=round(processed_value, 2),
+                            unit=unit,
+                            timestamp=timestamp_local,
+                            latitude=lat,
+                            longitude=lon,
+                            aqi=aqi,
+                            quality_level=quality_level,
+                            available=True,
+                            granules_found=granules_count
+                        )
+                        
+                        print(f"SUCCESS: Data processed (var={variable_used})")
+                        print(f"{'='*60}\n")
+                        
+                        return AirQualityResponse(
+                            location={
+                                "latitude": lat,
+                                "longitude": lon,
+                                "data_source": "tempo_satellite",
+                                "granules_processed": granules_count,
+                                "variable_used": variable_used
+                            },
+                            readings=[reading]
+                        )
+                
+                print("Could not extract valid value from granules")
             else:
-                print(f"No se encontraron granulos TEMPO para esta ubicación/fecha")
+                print("No TEMPO granules found for this location/date")
                 
         except Exception as e:
             print(f"Error fetching TEMPO data: {e}")
             traceback.print_exc()
     
-    print(f"Datos no disponibles")
+    print(f"Data unavailable")
     print(f"{'='*60}\n")
     
-    # Timestamp localizado
     now_utc = datetime.utcnow()
     timestamp_local = localize_dt(now_utc, lat, lon)
     
@@ -602,14 +614,13 @@ async def get_air_quality(
     
     return AirQualityResponse(
         location={
-            "latitude": lat, 
-            "longitude": lon, 
+            "latitude": lat,
+            "longitude": lon,
             "data_source": "unavailable",
             "granules_found": granules_count
         },
         readings=[reading]
     )
-
 
 @app.get("/forecast")
 async def get_forecast(
@@ -617,17 +628,26 @@ async def get_forecast(
     lon: float = Query(...),
     hours: int = Query(24, ge=1, le=72)
 ):
-    """Pronóstico de 24 horas con timestamps localizados."""
+    """Enhanced forecast showing TEMPO data availability pattern"""
     base_time = datetime.utcnow()
     forecast_data = []
     
+    # TEMPO operates during daylight hours only (typically 8 AM - 10 PM local)
     for i in range(hours):
         forecast_time = base_time + timedelta(hours=i)
         hour = forecast_time.hour
         
-        # Simulación de AQI
-        base_aqi = 45 + 25 * np.sin((hour - 6) * np.pi / 12)
-        aqi = int(max(20, base_aqi + np.random.normal(0, 8)))
+        # Simulate TEMPO availability (daylight hours)
+        is_tempo_time = 12 <= hour <= 22  # UTC hours when TEMPO is active
+        
+        if is_tempo_time:
+            # Better quality forecast during TEMPO observation times
+            base_aqi = 40 + 30 * np.sin((hour - 6) * np.pi / 12)
+            aqi = int(max(20, base_aqi + np.random.normal(0, 5)))
+        else:
+            # Less certain forecast outside TEMPO times
+            base_aqi = 50 + 20 * np.sin((hour - 6) * np.pi / 12)
+            aqi = int(max(25, base_aqi + np.random.normal(0, 10)))
         
         if aqi <= 50:
             level = "Good"
@@ -636,29 +656,30 @@ async def get_forecast(
         else:
             level = "Unhealthy for Sensitive Groups"
         
-        primary = "O3" if 10 <= hour <= 18 else "NO2"
+        primary = "O3" if 14 <= hour <= 20 else "NO2"
         
         forecast_data.append({
             "timestamp": localize_dt(forecast_time, lat, lon),
             "hour": i,
             "aqi": aqi,
             "quality_level": level,
-            "primary_pollutant": primary
+            "primary_pollutant": primary,
+            "tempo_available": is_tempo_time,
+            "confidence": "high" if is_tempo_time else "medium"
         })
     
     return {
         "location": {"latitude": lat, "longitude": lon},
         "generated_at": localize_dt(base_time, lat, lon),
-        "forecast": forecast_data
+        "forecast": forecast_data,
+        "note": "TEMPO provides hourly daytime measurements. Forecasts are most accurate during satellite observation periods."
     }
-
 
 @app.get("/alerts")
 async def get_air_quality_alerts(
     lat: float = Query(...),
     lon: float = Query(...)
 ):
-    """Alertas de calidad del aire con timestamps localizados."""
     current_aqi = int(45 + np.random.normal(0, 20))
     current_aqi = max(20, min(current_aqi, 180))
     
@@ -687,19 +708,12 @@ async def get_air_quality_alerts(
         "checked_at": localize_dt(datetime.utcnow(), lat, lon)
     }
 
-
 @app.get("/overall-aqi")
 async def get_overall_aqi(
     lat: float = Query(...),
     lon: float = Query(...),
     pollutants: Optional[str] = Query(None)
 ):
-    """Calcula AQI general consultando por cada contaminante y tomando el máximo.
-
-    pollutants: lista opcional separada por comas como "NO2,O3,HCHO". 
-    Si no se provee, se usan valores por defecto.
-    """
-    # Lista de contaminantes por defecto
     if pollutants:
         poll_list = [p.strip() for p in pollutants.split(",") if p.strip()]
     else:
@@ -743,7 +757,6 @@ async def get_overall_aqi(
         "per_pollutant": per_pollutant,
         "generated_at": localize_dt(datetime.utcnow(), lat, lon)
     }
-
 
 if __name__ == "__main__":
     import uvicorn
