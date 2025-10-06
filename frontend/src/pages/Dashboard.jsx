@@ -345,13 +345,13 @@ export default function Dashboard() {
               <Cloud style={{ 
                 width: '4rem', 
                 height: '4rem', 
-                color: '#60a5fa',
+                color: '#a0d8f1',
                 margin: '0 auto 1rem'
               }} />
               <h1 style={{
                 fontSize: '2.5rem',
                 fontWeight: '700',
-                background: 'linear-gradient(135deg, #fff 0%, #60a5fa 100%)',
+                background: 'linear-gradient(135deg, #fff 0%, #a0d8f1 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -361,14 +361,14 @@ export default function Dashboard() {
               </h1>
               <p style={{
                 fontSize: '1.125rem',
-                color: '#d1d5db',
+                color: '#b0b0b0',
                 marginBottom: '0.5rem'
               }}>
                 Busca una ciudad para comenzar
               </p>
               <p style={{
                 fontSize: '0.95rem',
-                color: '#9ca3af'
+                color: '#888'
               }}>
                 Datos en tiempo real del satélite NASA TEMPO
               </p>
@@ -421,17 +421,17 @@ export default function Dashboard() {
             <div style={{
               marginTop: '2rem',
               padding: '1rem',
-              background: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              borderRadius: '0.75rem'
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px'
             }}>
               <p style={{
                 fontSize: '0.875rem',
-                color: '#d1d5db',
+                color: '#b0b0b0',
                 textAlign: 'center',
                 margin: 0
               }}>
-                💡 TEMPO cubre principalmente América del Norte. Otras regiones pueden tener disponibilidad limitada.
+                💡 El uso de esta página web está estrictamente limitado al territorio de Norteamérica, debido a restricciones en la obtención de datos provenientes del satélite TEMPO.
               </p>
             </div>
           </div>
@@ -468,16 +468,16 @@ export default function Dashboard() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
             <div style={{
               padding: '0.5rem 1rem',
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(12px)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              backdropFilter: 'blur(20px)',
               borderRadius: '0.5rem',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem'
             }}>
-              <Activity style={{ width: '1rem', height: '1rem', color: '#60a5fa' }} />
-              <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>AQI:</span>
+              <Activity style={{ width: '1rem', height: '1rem', color: '#a0d8f1' }} />
+              <span style={{ fontSize: '0.75rem', color: '#888' }}>AQI:</span>
               <span className={`${getAQIColor(overallAQI)}`} style={{
                 fontWeight: 'bold',
                 padding: '0.125rem 0.5rem',
@@ -499,16 +499,16 @@ export default function Dashboard() {
                   style={{
                     padding: '0.5rem 1rem',
                     borderRadius: '0.5rem',
-                    border: isSelected ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
-                    background: isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(12px)',
+                    border: isSelected ? '2px solid white' : '1px solid rgba(255, 255, 255, 0.1)',
+                    background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                    backdropFilter: 'blur(20px)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
                     color: 'white',
-                    boxShadow: isSelected ? '0 0 0 3px rgba(59, 130, 246, 0.3)' : 'none'
+                    boxShadow: isSelected ? '0 0 0 2px rgba(255, 255, 255, 0.2)' : 'none'
                   }}
                   className="pollutant-quick-btn"
                 >
@@ -516,7 +516,7 @@ export default function Dashboard() {
                   {data?.available ? (
                     <>
                       <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>{data.value?.toFixed(2)}</span>
-                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{data.unit}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#888' }}>{data.unit}</span>
                       <span className={getAQIColor(data.aqi)} style={{
                         padding: '0.125rem 0.375rem',
                         borderRadius: '0.25rem',
@@ -527,7 +527,7 @@ export default function Dashboard() {
                       </span>
                     </>
                   ) : (
-                    <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>No disponible</span>
+                    <span style={{ fontSize: '0.75rem', color: '#888' }}>No disponible</span>
                   )}
                 </button>
               );
@@ -549,7 +549,7 @@ export default function Dashboard() {
             justifyContent: 'center'
           }}>
             <div style={{
-              background: 'rgba(30, 41, 59, 0.9)',
+              background: 'rgba(0, 0, 0, 0.9)',
               borderRadius: '1rem',
               padding: '2rem',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -559,14 +559,14 @@ export default function Dashboard() {
               <Loader style={{
                 width: '3rem',
                 height: '3rem',
-                color: '#60a5fa',
+                color: '#a0d8f1',
                 animation: 'spin 1s linear infinite',
                 margin: '0 auto 1rem'
               }} />
               <p style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.5rem' }}>
                 Cargando datos de {selectedPollutant}...
               </p>
-              <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+              <p style={{ fontSize: '0.875rem', color: '#888' }}>
                 Consultando satélite NASA TEMPO
               </p>
             </div>
@@ -770,14 +770,14 @@ export default function Dashboard() {
                   <div className="pollutant-header">
                     <h4 className="pollutant-name">{pollutant.name}</h4>
                     <Droplets className="pollutant-icon" />
-                    </div>
+                  </div>
                   <p className="pollutant-full-name">{pollutant.full_name}</p>
                   
                   {data?.available ? (
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{data.value?.toFixed(2)}</span>
-                        <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{data.unit}</span>
+                        <span style={{ fontSize: '0.875rem', color: '#888' }}>{data.unit}</span>
                       </div>
                       <div className={getAQIColor(data.aqi)} style={{
                         display: 'inline-block',
@@ -789,11 +789,11 @@ export default function Dashboard() {
                       }}>
                         AQI: {data.aqi}
                       </div>
-                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>{data.quality_level}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#888', margin: 0 }}>{data.quality_level}</p>
                     </div>
                   ) : (
                     <div style={{ padding: '0.5rem 0' }}>
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>No disponible</p>
+                      <p style={{ fontSize: '0.875rem', color: '#666' }}>No disponible</p>
                     </div>
                   )}
                   
@@ -811,45 +811,6 @@ export default function Dashboard() {
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        <div className="weather-section">
-          <h3 className="section-title">
-            <Cloud className="title-icon" />
-            Factores Meteorológicos y Ambientales
-          </h3>
-          <div className="weather-grid">
-            <div className="weather-card">
-              <div className="weather-header">
-                <Wind className="weather-icon" />
-                <span className="weather-label">Velocidad del Viento</span>
-              </div>
-              <p className="weather-value">12 km/h</p>
-              <p className="weather-description">
-                Dirección NE, ayuda a dispersar contaminantes
-              </p>
-            </div>
-            <div className="weather-card">
-              <div className="weather-header">
-                <ThermometerSun className="weather-icon weather-icon-orange" />
-                <span className="weather-label">Temperatura</span>
-              </div>
-              <p className="weather-value">24°C</p>
-              <p className="weather-description">
-                Moderada, condiciones favorables
-              </p>
-            </div>
-            <div className="weather-card">
-              <div className="weather-header">
-                <Droplets className="weather-icon weather-icon-cyan" />
-                <span className="weather-label">Humedad</span>
-              </div>
-              <p className="weather-value">65%</p>
-              <p className="weather-description">
-                Niveles normales, sin precipitación esperada
-              </p>
-            </div>
           </div>
         </div>
 

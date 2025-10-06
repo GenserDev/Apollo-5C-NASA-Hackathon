@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/Home.css';
 
 function HomeSection() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const splineViewerRef = useRef(null);
 
@@ -42,10 +44,7 @@ function HomeSection() {
   }, []);
 
   const handleExploreData = () => {
-    const datosSection = document.getElementById('datos');
-    if (datosSection) {
-      datosSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    navigate('/dashboard'); // Redirigir al Dashboard
   };
 
   const handleLearnMore = () => {
