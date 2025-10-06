@@ -1,4 +1,4 @@
-<h1 align="center">Apollo-5C-NASA-Hackathon</h1>
+<h1 align="center">Apollo 5C NASA Hackathon</h1>
 
 
 <p align="center">
@@ -82,7 +82,7 @@ git clone https://github.com/GenserDev/Apollo-5C-NASA-Hackathon.git
 cd Apollo-5C-NASA-Hackathon
 ```
 
-### 2. Create your `.env` file
+### 2. Create your `.env` file in backend root
 ```
 NASA_USERNAME=your_nasa_username
 NASA_PASSWORD=your_nasa_password
