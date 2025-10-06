@@ -5,6 +5,12 @@
 <img width="400" height="588" alt="nasa" src="https://github.com/user-attachments/assets/55f5bb1f-e11c-4a2c-a1e6-d5ba03d60f46" />
 </p>
 
+<p align="center">
+Project Deploy Link: https://genserdev.space/
+</p>
+
+<br>
+<br>
 
 # 🌎 TEMPO Air Quality Forecasting App
 
@@ -72,8 +78,8 @@ The app automatically retrieves pollutant data (NO₂, O₃, HCHO, SO₂), calcu
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/<your-org>/tempo-air-quality.git
-cd tempo-air-quality
+git clone https://github.com/GenserDev/Apollo-5C-NASA-Hackathon.git
+cd Apollo-5C-NASA-Hackathon
 ```
 
 ### 2. Create your `.env` file
@@ -88,7 +94,7 @@ docker-compose up --build
 ```
 
 ### 4. Access the app
-- Frontend: [http://localhost:5173](http://localhost:5173)
+- Frontend: [http://localhost:5173](http://localhost:3000)
 - Backend API: [http://localhost:8000](http://localhost:8000)
 
 ---
